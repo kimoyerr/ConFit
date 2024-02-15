@@ -1,4 +1,4 @@
-model: ESM-2
+model: ESM-1v
 gpu_number: 4
 shot: 48
 batch_size: 16
