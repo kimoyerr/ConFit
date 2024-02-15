@@ -3,7 +3,9 @@ appdirs==1.4.4
 loralib
 bitsandbytes==0.42.0
 datasets==2.17.0
+deepspeed
 fire==0.5.0
+jupyterlab
 peft==0.8.2
 transformers
 gradio
