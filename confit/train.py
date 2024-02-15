@@ -11,8 +11,8 @@ from pathlib import Path
 import accelerate
 from accelerate import Accelerator
 
-from data_utils import Mutation_Set, split_train, sample_data
-from stat_utils import spearman, compute_score, BT_loss, KLloss
+from confit.data_utils import Mutation_Set, split_train, sample_data
+from confit.stat_utils import spearman, compute_score, BT_loss, KLloss
 import gc
 import warnings
 import time
