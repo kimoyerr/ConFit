@@ -11,6 +11,7 @@ from pathlib import Path
 import accelerate
 from accelerate import Accelerator
 
+import debugpy
 from confit.data_utils import Mutation_Set, split_train, sample_data
 from confit.stat_utils import spearman, compute_score, BT_loss, KLloss
 import gc
@@ -42,11 +43,16 @@ def train(model, model_reg, trainloder, optimizer, tokenizer, lambda_reg):
         l_reg = KLloss(logits, logits_reg, seq, mask)
 
         loss = l_BT + lambda_reg*l_reg
+        # loss = l_BT
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
+        
+        # Get current cuda device
+        cur_device = torch.cuda.current_device()
+        print(cur_device, step, total_loss)
     return total_loss
 
 
@@ -94,10 +100,16 @@ def main():
     parser.add_argument('--config', type=str, default='48shot_config.yaml',
                         help='the config file name')
     parser.add_argument('--dataset', type=str, help='the dataset name')
+    parser.add_argument("--data_dir", type=str, default="data", help="the data directory")
     parser.add_argument('--sample_seed', type=int, default=0, help='the sample seed for dataset')
+    parser.add_argument('--test_fraction', type=float, default=0.5, help='the fraction of data to use for final testing at the end of training')
     parser.add_argument('--model_seed', type=int, default=1, help='the random seed for the pretrained model initiate')
     args = parser.parse_args()
     dataset = args.dataset
+    data_dir = args.data_dir
+
+    args.test_fraction = 0.2
+    print(args.test_fraction)
 
     #read in config
     with open(f'{args.config}', 'r', encoding='utf-8') as f:
@@ -143,26 +155,28 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=float(config['ini_lr']))
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=2*int(config['max_epochs']), eta_min=float(config['min_lr']))
     if os.environ.get("ACCELERATE_USE_FSDP", None) is not None:
+        print(os.environ.get("ACCELERATE_USE_FSDP", None))
+        print("here")
         accelerator.state.fsdp_plugin.auto_wrap_policy = fsdp_auto_wrap_policy(model)
     model, optimizer, scheduler = accelerator.prepare(model, optimizer, scheduler)
+    print(model)
     model_reg = accelerator.prepare(model_reg)
 
     accelerator.print(f'===================dataset:{dataset}, preparing data=============')
 
     # sample data
     if accelerator.is_main_process:
-        sample_data(dataset, args.sample_seed, int(config['shot']))
+        sample_data(dataset, args.sample_seed, int(config['shot']), frac=args.test_fraction)
         split_train(dataset)
 
     with accelerator.main_process_first():
         train_csv = pd.DataFrame(None)
-        test_csv = pd.read_csv(f'data/{dataset}/test.csv')
+        test_csv = pd.read_csv(f"{data_dir}/{dataset}/test.csv")
         for i in range(1, 6):
             if i == args.model_seed:
-                val_csv = pd.read_csv(f'data/{dataset}/train_{i}.csv')   #using 1/5 train data as validation set
-            temp_csv = pd.read_csv(f'data/{dataset}/train_{i}.csv')
+                val_csv = pd.read_csv(f"{data_dir}/{dataset}/train_{i}.csv")   #using 1/5 train data as validation set
+            temp_csv = pd.read_csv(f"{data_dir}/{dataset}/train_{i}.csv")
             train_csv = pd.concat([train_csv, temp_csv], axis=0)
-
 
     #creat dataset and dataloader
     trainset = Mutation_Set(data=train_csv, fname=dataset, tokenizer=tokenizer)
@@ -186,6 +200,7 @@ def main():
     best_epoch = 0
 
     for epoch in range(int(config['max_epochs'])):
+        print("inside epoch")
         loss = train(model, model_reg, trainloader, optimizer, tokenizer, float(config['lambda_reg']))
         accelerator.print(f'========epoch{epoch}; training loss :{loss}=================')
         sr = evaluate(model, valloader, tokenizer, accelerator)
