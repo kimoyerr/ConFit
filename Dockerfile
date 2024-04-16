@@ -18,7 +18,9 @@ RUN apt-get update && apt-get install -y \
     g++-9 \
     python3-pip 
 
-RUN pip install torch torchvision torchaudio
+# RUN pip install torch torchvision torchaudio
+RUN git clone https://github.com/OpenAccess-AI-Collective/axolotl
+RUN cd /axolotl && pip3 install packaging && pip3 install -e '.[flash-attn,deepspeed]'
 
 # Run requirements.txt
 COPY requirements.txt .
