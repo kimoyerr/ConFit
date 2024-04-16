@@ -5,6 +5,7 @@ from scipy.stats import spearmanr
 from scipy import stats
 import torch.distributed as dist
 
+# From: https://github.com/IDEA-Research/DisCo-CLIP/tree/main
 import disco
 
 
