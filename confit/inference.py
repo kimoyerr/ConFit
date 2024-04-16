@@ -21,7 +21,7 @@ if os.path.exists(f'results/{args.dataset}/summary.csv'):
 else:
     summary = pd.DataFrame(None)
 
-
+args.no_retrival = True
 if os.path.exists(f'predicted/{args.dataset}/pred.csv'):
     pred = pd.read_csv(f'predicted/{args.dataset}/pred.csv', index_col=0)
     pred = pred.drop_duplicates(subset='PID')
@@ -36,6 +36,11 @@ if os.path.exists(f'predicted/{args.dataset}/pred.csv'):
     pred = pd.concat([pred, temp], axis=1)
     pred = pred.rename(columns={0: 'avg'})
     test = pd.read_csv(f'data/{args.dataset}/test.csv', index_col=0)
+    # If "PID" is in the index of the dataframe, use the following line to reset the index and move "PID" to a column
+    if "PID" in test.index.names:
+        test["PID"] = test.index
+        test = test.reset_index(drop=True)
+
     avg = pred[['avg', 'PID']]
     label = test[['PID', 'log_fitness']]
     perf = pd.merge(avg, label, on='PID')
