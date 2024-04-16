@@ -11,13 +11,14 @@ from Bio import SeqIO
 
 class Mutation_Set(Dataset):
     def __init__(self, data, fname, tokenizer, sep_len=1024):
+
         self.data = data
         self.tokenizer = tokenizer
         self.seq_len = sep_len
         self.seq, self.attention_mask = tokenizer(list(self.data['seq']), padding='max_length',
                                                   truncation=True,
                                                   max_length=self.seq_len).values()
-        wt_path = os.path.join('data', fname, 'wt.fasta')
+        wt_path = os.path.join("/ConFit/data", fname, "wt.fasta")
         for seq_record in SeqIO.parse(wt_path, "fasta"):
             wt = str(seq_record.seq)
         target = [wt]*len(self.data)
@@ -62,30 +63,32 @@ def sample_data(dataset_name, seed, shot, frac=0.2):
     :param shot: the size of training data
     '''
 
-    data = pd.read_csv(f'data/{dataset_name}/data.csv', index_col=0)
+    data = pd.read_csv(f"data/{dataset_name}/data.csv", index_col=0)
+    print(data.shape)
     test_data = data.sample(frac=frac, random_state=seed)
     train_data = data.drop(test_data.index)
+    print(train_data.shape)
     kshot_data = train_data.sample(n=shot, random_state=seed)
     assert len(kshot_data) == shot, (
         f'expected {shot} train examples, received {len(train_data)}')
 
-    kshot_data.to_csv(f'data/{dataset_name}/train.csv')
-    test_data.to_csv(f'data/{dataset_name}/test.csv')
+    kshot_data.to_csv(f"data/{dataset_name}/train.csv")
+    test_data.to_csv(f"data/{dataset_name}/test.csv")
 
 
 def split_train(dataset_name):
     '''
     five equal split training data, one of which will be used as validation set when training ConFit
     '''
-    train = pd.read_csv(f'data/{dataset_name}/train.csv', index_col=0)
+    train = pd.read_csv(f"data/{dataset_name}/train.csv", index_col=0)
     tlen = int(np.ceil(len(train) / 5))
     start = 0
     for i in range(1, 5):
         csv = train[start:start + tlen]
         start += tlen
-        csv.to_csv(f'data/{dataset_name}/train_{i}.csv')
+        csv.to_csv(f"data/{dataset_name}/train_{i}.csv")
     csv = train[start:]
-    csv.to_csv(f'data/{dataset_name}/train_{5}.csv')
+    csv.to_csv(f"data/{dataset_name}/train_{5}.csv")
 
 
 
