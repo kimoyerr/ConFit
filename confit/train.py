@@ -10,6 +10,7 @@ import argparse
 from pathlib import Path
 import accelerate
 from accelerate import Accelerator
+import torch.distributed as dist
 
 import debugpy
 from confit.data_utils import Mutation_Set, split_train, sample_data
@@ -18,6 +19,8 @@ import gc
 import warnings
 import time
 import yaml
+
+
 warnings.filterwarnings("ignore")
 
 
@@ -56,7 +59,7 @@ def train(model, model_reg, trainloder, optimizer, tokenizer, lambda_reg):
     return total_loss
 
 
-def evaluate(model, testloader, tokenizer, accelerator, istest=False):
+def evaluate(model, testloader, tokenizer, accelerator=None, istest=False):
     model.eval()
     seq_list = []
     score_list = []
@@ -74,15 +77,28 @@ def evaluate(model, testloader, tokenizer, accelerator, istest=False):
                 for s in pid:
                     seq_list.append(s.cpu())
 
-            score, logits = compute_score(model, seq, mask, wt, pos, tokenizer)
-
+            score, logits, _, _ = compute_score(model, seq, mask, wt, pos, tokenizer)
             score = score.cuda()
-            score = accelerator.gather(score)
-            golden_score = accelerator.gather(golden_score)
-            score = np.asarray(score.cpu())
-            golden_score = np.asarray(golden_score.cpu())
-            score_list.extend(score)
-            gscore_list.extend(golden_score)
+            golden_score = golden_score.cuda()
+            if accelerator == "fsdp":
+                world_size = dist.get_world_size()
+                gathered_scores = [
+                    torch.zeros_like(score) for _ in range(world_size)
+                ]
+                gathered_golden_scores = [
+                    torch.zeros_like(golden_score) for _ in range(world_size)
+                ]
+                dist.all_gather(gathered_scores, score)
+                dist.all_gather(gathered_golden_scores, golden_score)
+                gathered_scores = torch.cat(gathered_scores)
+                gathered_golden_scores = torch.cat(gathered_golden_scores)
+            else:
+                gathered_scores = accelerator.gather(score)
+                gathered_golden_scores = accelerator.gather(golden_score)
+            gathered_scores = np.asarray(gathered_scores.cpu())
+            gathered_golden_scores = np.asarray(gathered_golden_scores.cpu())
+            score_list.extend(gathered_scores)
+            gscore_list.extend(gathered_golden_scores)
     score_list = np.asarray(score_list)
     gscore_list = np.asarray(gscore_list)
     sr = spearman(score_list, gscore_list)
