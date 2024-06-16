@@ -141,7 +141,7 @@ def BT_loss_disco_gather(gpu, scores, golden_scores):
                 loss += torch.log(1+torch.exp(all_scores[j]-scores[i]))
             else:
                 loss += torch.log(1+torch.exp(scores[i]-all_scores[j]))
-    print(f"Total comparisons: {total_comparisons}")
+    # print(f"Total comparisons: {total_comparisons}")
     return loss, scores, all_scores, all_golden_scores
 
 

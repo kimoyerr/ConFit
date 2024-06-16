@@ -18,7 +18,8 @@ class Mutation_Set(Dataset):
         self.seq, self.attention_mask = tokenizer(list(self.data['seq']), padding='max_length',
                                                   truncation=True,
                                                   max_length=self.seq_len).values()
-        wt_path = os.path.join("/ConFit/data", fname, "wt.fasta")
+        # TODO: make the path of the data directory an argument
+        wt_path = os.path.join("/workspace/ConFit/data/proteingym/", fname, "wt.fasta")
         for seq_record in SeqIO.parse(wt_path, "fasta"):
             wt = str(seq_record.seq)
         target = [wt]*len(self.data)
