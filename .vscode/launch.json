@@ -4,8 +4,19 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        // {
+        //     "name": "Confit Inference",
+        //     "type": "python",
+        //     "request": "launch",
+        //     "program": "${file}",
+        //     "console": "integratedTerminal",
+        //     "args": [
+        //         "--dataset", "FAR_Z11",
+        //         "--shot", "48",
+        //     ],
+        // },
         {
-            "name": "Python: Current File",
+            "name": "Confit Train",
             "type": "python",
             "request": "launch",
             "module": "accelerate.commands.launch",
@@ -13,7 +24,7 @@
                 "--config_file", "config/parallel_config.yaml",
                 "confit/train.py",
                 "--config", "config/training_config.yaml",
-                "--dataset", "FAR_Z11",
+                "--dataset", "ENVZ_ECOLI_Ghose_2023",
                 "--sample_seed", "0",
                 "--model_seed", "1",
             ],
@@ -22,3 +33,4 @@
         }
     ]
 }
+
