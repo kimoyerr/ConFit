@@ -10,7 +10,7 @@ from Bio import SeqIO
 
 
 class Mutation_Set(Dataset):
-    def __init__(self, data, fname, tokenizer, sep_len=1024):
+    def __init__(self, wt_path, data, fname, tokenizer, sep_len=1024):
 
         self.data = data
         self.tokenizer = tokenizer
@@ -19,7 +19,7 @@ class Mutation_Set(Dataset):
                                                   truncation=True,
                                                   max_length=self.seq_len).values()
         # TODO: make the path of the data directory an argument
-        wt_path = os.path.join("/workspace/ConFit/data/proteingym/", fname, "wt.fasta")
+        # wt_path = os.path.join("/workspace/ConFit/data/proteingym/", fname, "wt.fasta")
         for seq_record in SeqIO.parse(wt_path, "fasta"):
             wt = str(seq_record.seq)
         target = [wt]*len(self.data)
