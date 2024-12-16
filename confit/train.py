@@ -76,7 +76,6 @@ def evaluate(model, testloader, tokenizer, accelerator=None, istest=False):
                 pid = accelerator.gather(pid)
                 for s in pid:
                     seq_list.append(s.cpu())
-
             score, logits, _, _ = compute_score(model, seq, mask, wt, pos, tokenizer)
             score = score.cuda()
             golden_score = golden_score.cuda()
