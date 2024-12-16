@@ -36,27 +36,53 @@ def compute_score(model, seq, mask, wt, pos, tokenizer):
     device = seq.device
 
     mask_seq = seq.clone()
-    m_id = tokenizer.mask_token_id
+    if hasattr(tokenizer, "mask_token_id"):
+        if tokenizer.mask_token_id is not None:
+            m_id = tokenizer.mask_token_id
+            model_type = "masked"
+        else:
+            m_id = 4 # TODO: Fix this for different models
+            model_type = "causal"
+    else:
+        m_id = 4  # TODO: Fix this for different models
 
     batch_size = int(seq.shape[0])
     for i in range(batch_size):
         mut_pos = pos[i]
-        mask_seq[i, mut_pos+1] = m_id
+        if model_type == "masked":
+            mask_seq[i, mut_pos+1] = m_id
+        if model_type == "causal":
+            final_mut_pos = torch.sort(mut_pos, descending=True)[0][0]
+            mask_seq[i, (final_mut_pos+1):] = m_id
+            # Check if the first token is the bos token, if not, insert it at the beginning
+            if mask_seq[i, 0] != 3:  #TODO: Fix this for different models
+                mask_seq[i, 1:] = mask_seq[i, :-1].clone()
+                mask_seq[i, 0] = 3 # TODO: Fix this for different models
 
-    out = model(mask_seq, mask, output_hidden_states=True)
+    if model_type == "masked":
+        out = model(mask_seq, mask, output_hidden_states=True)
+    else:
+        out = model(mask_seq, output_hidden_states=True)  # No need for mask in causal model
     logits = out.logits
     log_probs = torch.log_softmax(logits, dim=-1)
     scores = torch.zeros(batch_size)
     # scores = scores.to(device)
 
     for i in range(batch_size):
-
         mut_pos = pos[i]
         score_i = log_probs[i]
         wt_i = wt[i]
         seq_i = seq[i]
         # TODO: Does this compare across batches on different GPUs? If not, we need to fix this
-        scores[i] = torch.sum(score_i[mut_pos+1, seq_i[mut_pos+1]])-torch.sum(score_i[mut_pos+1, wt_i[mut_pos+1]])
+        if model_type == "masked":
+            scores[i] = torch.sum(score_i[mut_pos+1, seq_i[mut_pos+1]])-torch.sum(score_i[mut_pos+1, wt_i[mut_pos+1]])
+        if model_type == "causal":
+            # Get the final position in mut_pos after sorting
+            final_mut_pos = torch.sort(mut_pos, descending=True)[0][0]
+            tmp_score = 0
+            for j in range(final_mut_pos+1):
+                tmp_score += torch.sum(score_i[j, seq_i[j]])-torch.sum(score_i[j, wt_i[j]])
+            scores[i] = tmp_score    
 
     return scores, logits, out, log_probs
 
